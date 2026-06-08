@@ -11,8 +11,10 @@
 
 处理：
 
-1. 检查 `~/.openclaw/openclaw.json` 中 `running-coach` 是否单独配置强模型。
-2. 推荐模型：
+1. 检查 `~/.openclaw/openclaw.json` 中 `running-coach` 是否单独配置模型。
+2. 不要静默继承全局默认模型。安装脚本会读取用户本机可用模型并要求用户选择。
+3. 如果本机没有合适模型，先配置 Claude / GPT / Gemini 等高阶模型，再运行安装脚本。
+4. 常见高阶模型示例：
 
 ```text
 zenmux/anthropic/claude-sonnet-4.6
@@ -21,7 +23,20 @@ zenmux/openai/gpt-5.4
 zenmux/google/gemini-3.1-pro-preview
 ```
 
-3. 修改后重启 gateway。
+5. 修改后重启 gateway。
+
+## 安装时没有合适模型
+
+处理：
+
+1. 先在 OpenClaw 里配置新的模型 provider 或 API key。
+2. 确认 `~/.openclaw/openclaw.json` 的 `models.providers` 下能看到新模型。
+3. 重新运行安装脚本。
+4. 也可以用环境变量显式指定模型：
+
+```bash
+RUNNING_COACH_MODEL="provider/model-id" bash scripts/install-running-coach-agent.sh
+```
 
 ## 微信或聊天工具收不到回复
 
@@ -91,4 +106,3 @@ openclaw cron runs --id <job-id>
 - 候选规律先写 `memory/review-candidates.md`。
 - 用户确认后再写 `memory/runner-profile.md`。
 - 周/月复盘只保存摘要到长期画像，不保存所有原始细节。
-

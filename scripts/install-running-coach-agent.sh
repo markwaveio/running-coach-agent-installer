@@ -4,7 +4,7 @@ set -euo pipefail
 AGENT_ID="${RUNNING_COACH_AGENT_ID:-running-coach}"
 AGENT_NAME="${RUNNING_COACH_AGENT_NAME:-running-coach}"
 WORKSPACE="${RUNNING_COACH_WORKSPACE:-$HOME/.openclaw/workspace-running-coach}"
-MODEL="${RUNNING_COACH_MODEL:-zenmux/anthropic/claude-sonnet-4.6}"
+MODEL="${RUNNING_COACH_MODEL:-}"
 CONFIG="${OPENCLAW_CONFIG:-$HOME/.openclaw/openclaw.json}"
 
 say() { printf "\n\033[1;36m%s\033[0m\n" "$*"; }
@@ -13,6 +13,107 @@ die() { printf "\n\033[1;31m%s\033[0m\n" "$*" >&2; exit 1; }
 
 command -v openclaw >/dev/null 2>&1 || die "未找到 openclaw CLI。请先安装并初始化 OpenClaw。"
 command -v node >/dev/null 2>&1 || die "未找到 node。OpenClaw 配置修复需要 node。"
+[ -f "$CONFIG" ] || die "找不到 OpenClaw 配置：$CONFIG。请先运行 OpenClaw 初始化。"
+
+choose_model() {
+  if [ -n "$MODEL" ]; then
+    say "使用环境变量指定的模型"
+    printf "Model: %s\n" "$MODEL"
+    return
+  fi
+
+  say "选择 Running Coach 使用的模型"
+  cat <<'EOF'
+Running Coach 是长期教练，不建议直接继承 OpenClaw 的全局默认模型。
+我会读取你本机 OpenClaw 已配置的模型，请你显式选择一个。
+
+建议优先选择 Claude / GPT / Gemini 等高阶模型；便宜模型适合测试，但长期教练体验通常较差。
+EOF
+
+  local model_file
+  while true; do
+    model_file="$(mktemp)"
+    node <<NODE > "$model_file"
+const fs = require("fs");
+const config = "$CONFIG";
+const json = JSON.parse(fs.readFileSync(config, "utf8"));
+const providers = json.models?.providers || {};
+const rows = [];
+for (const [providerId, provider] of Object.entries(providers)) {
+  for (const model of provider.models || []) {
+    if (!model || !model.id) continue;
+    const fullId = providerId + "/" + model.id;
+    const label = model.name || model.id;
+    const text = (fullId + " " + label).toLowerCase();
+    let score = 0;
+    if (text.includes("claude")) score += 100;
+    if (text.includes("gpt-5")) score += 90;
+    if (text.includes("gemini")) score += 80;
+    if (text.includes("reasoner")) score += 40;
+    if (text.includes("mini")) score -= 20;
+    if (text.includes("nano")) score -= 30;
+    if (text.includes("flash")) score -= 35;
+    if (text.includes("free")) score -= 45;
+    rows.push({ fullId, label, score });
+  }
+}
+rows.sort((a, b) => b.score - a.score || a.fullId.localeCompare(b.fullId));
+for (const row of rows) {
+  const tag = row.score >= 70 ? "推荐" : "可用";
+  console.log([row.fullId, row.label, tag].join("\t"));
+}
+NODE
+
+    if [ -s "$model_file" ]; then
+      printf "\n可用模型：\n"
+      awk -F '\t' '{ printf "%2d) %-48s  %s  [%s]\n", NR, $1, $2, $3 }' "$model_file"
+    else
+      warn "未在 $CONFIG 中读取到可用模型。"
+    fi
+
+    cat <<'EOF'
+
+ 0) 手动输入其他模型 ID
+ c) 先配置/授权一个新模型，然后重新读取列表
+ q) 退出安装
+
+EOF
+    printf "请输入序号 / c / q："
+    local choice
+    read -r choice
+
+    if [ "$choice" = "q" ] || [ "$choice" = "Q" ]; then
+      rm -f "$model_file"
+      die "未选择模型，停止安装，避免误用默认模型。"
+    elif [ "$choice" = "c" ] || [ "$choice" = "C" ]; then
+      rm -f "$model_file"
+      cat <<'EOF'
+
+接下来会进入 OpenClaw 模型授权/配置向导。
+你可以配置 OpenAI、Anthropic/Claude、Google/Gemini、OpenRouter、ZenMux 等本机支持的 provider。
+
+配置完成后，脚本会重新读取可用模型列表。
+
+EOF
+      openclaw models auth add || warn "模型授权向导未完成。你也可以手动配置后重新运行本脚本。"
+      continue
+    elif [ "$choice" = "0" ]; then
+      printf "请输入模型 ID，例如 provider/model-id："
+      read -r MODEL
+    elif printf "%s" "$choice" | grep -Eq '^[0-9]+$'; then
+      MODEL="$(sed -n "${choice}p" "$model_file" | cut -f1)"
+    else
+      MODEL=""
+    fi
+    rm -f "$model_file"
+
+    [ -n "$MODEL" ] || die "未选择模型，停止安装，避免误用默认模型。"
+    printf "已选择模型：%s\n" "$MODEL"
+    return
+  done
+}
+
+choose_model
 
 say "Running Coach 一键部署"
 printf "Agent ID: %s\nWorkspace: %s\nModel: %s\nConfig: %s\n" "$AGENT_ID" "$WORKSPACE" "$MODEL" "$CONFIG"
@@ -332,7 +433,6 @@ RUNNING_COACH_INSTALLER_MANAGED
 EOF
 
 say "修复 OpenClaw 配置：强模型 + 防自循环"
-[ -f "$CONFIG" ] || die "找不到 OpenClaw 配置：$CONFIG"
 backup="${CONFIG}.pre-running-coach-installer-$(date +%Y%m%d-%H%M%S)"
 cp "$CONFIG" "$backup"
 printf "已备份配置：%s\n" "$backup"
