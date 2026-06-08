@@ -45,7 +45,16 @@ RUNNING_COACH_MODEL="provider/model-id" bash scripts/install-running-coach-agent
 - 是否 channel 已绑定到 `running-coach`。
 - OpenClaw gateway 是否在线。
 - 微信/Telegram/飞书 channel 是否 OK。
+- 当前网络是否能访问对应 channel 服务。
+- OpenClaw gateway 是否也拿到了代理，而不是只有终端有代理。
 - 是否出现 `sessions_send current` 自循环。
+
+先运行：
+
+```bash
+bash scripts/network-proxy-preflight.sh
+openclaw channels status --probe
+```
 
 防自循环硬规则：
 

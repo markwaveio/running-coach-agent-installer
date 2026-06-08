@@ -26,26 +26,28 @@ bash scripts/install-running-coach-agent.sh
 脚本会做这些事：
 
 1. 检查 `openclaw` 是否可用。
-2. 创建或修复 `running-coach` agent。
-3. 初始化工作区：
+2. 先做网络与代理预检查：检测本机代理、测试外部服务连通性，并可把代理写入 OpenClaw 配置和 gateway 环境。
+3. 创建或修复 `running-coach` agent。
+4. 初始化工作区：
 
 ```text
 ~/.openclaw/workspace-running-coach
 ```
 
-4. 写入核心文件：`BOOTSTRAP.md`、`SOUL.md`、`IDENTITY.md`、`AGENTS.md`、`USER.md`、`TOOLS.md`、`HEARTBEAT.md`。
-5. 创建数据目录：`data/raw`、`data/processed`、`data/plans`、`data/checkins`、`data/reviews`、`data/reminders`、`data/integrations`、`memory`。
-6. 读取用户本机 OpenClaw 已配置模型，让用户显式选择 Running Coach 使用的模型；如果没有合适模型，会引导用户先配置/授权新模型；不会使用作者本机默认模型，也不会静默继承全局默认模型。
+5. 写入核心文件：`BOOTSTRAP.md`、`SOUL.md`、`IDENTITY.md`、`AGENTS.md`、`USER.md`、`TOOLS.md`、`HEARTBEAT.md`。
+6. 创建数据目录：`data/raw`、`data/processed`、`data/plans`、`data/checkins`、`data/reviews`、`data/reminders`、`data/integrations`、`memory`。
+7. 读取用户本机 OpenClaw 已配置模型，让用户显式选择 Running Coach 使用的模型；如果没有合适模型，会引导用户先配置/授权新模型；不会使用作者本机默认模型，也不会静默继承全局默认模型。
 
-7. 给 agent 加硬规则，禁止 `sessions_send` / `sessions_spawn`，避免聊天工具自循环。
-8. 写入计划确认规则：只有用户确认后的 `confirmed` / `active` 计划才允许同步日历和触发提醒。
-9. 输出下一步：channel 绑定、Google Calendar、主动提醒、验收测试。
+8. 给 agent 加硬规则，禁止 `sessions_send` / `sessions_spawn`，避免聊天工具自循环。
+9. 写入计划确认规则：只有用户确认后的 `confirmed` / `active` 计划才允许同步日历和触发提醒。
+10. 输出下一步：channel 绑定、Google Calendar、主动提醒、验收测试。
 
 ## 必须讲清楚的核心规则
 
 安装和教学时必须强调：
 
 - Running Coach 的运行时数据目录是 `~/.openclaw/workspace-running-coach`，不是项目开发目录。
+- 网络不通时先修代理，再配置 channel、模型和 Google Calendar。只在终端 export 代理不够，必须让 OpenClaw gateway 进程也拿到代理环境。
 - 安装时必须让用户选择本机可用模型；如果没有合适模型，先用 `openclaw models auth add` 引导用户配置/授权新模型，再继续部署。
 - 便宜模型适合测试；正式长期教练建议使用 Claude / GPT / Gemini 等高阶模型。
 - 普通聊天回复不要使用 `sessions_send current`，否则会把回复发回同一个 session，造成“模型自己回复自己”。
@@ -83,4 +85,5 @@ bash scripts/install-running-coach-agent.sh
 ## 需要时读取的参考文件
 
 - Google Calendar 和主动提醒配置细节：`references/calendar-and-reminders.md`
+- 网络代理和 channel 连通性：`references/network-proxy.md`
 - 故障排查和我们踩过的坑：`references/troubleshooting.md`

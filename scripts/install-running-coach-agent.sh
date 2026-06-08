@@ -6,6 +6,7 @@ AGENT_NAME="${RUNNING_COACH_AGENT_NAME:-running-coach}"
 WORKSPACE="${RUNNING_COACH_WORKSPACE:-$HOME/.openclaw/workspace-running-coach}"
 MODEL="${RUNNING_COACH_MODEL:-}"
 CONFIG="${OPENCLAW_CONFIG:-$HOME/.openclaw/openclaw.json}"
+SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 say() { printf "\n\033[1;36m%s\033[0m\n" "$*"; }
 warn() { printf "\n\033[1;33m%s\033[0m\n" "$*"; }
@@ -14,6 +15,12 @@ die() { printf "\n\033[1;31m%s\033[0m\n" "$*" >&2; exit 1; }
 command -v openclaw >/dev/null 2>&1 || die "未找到 openclaw CLI。请先安装并初始化 OpenClaw。"
 command -v node >/dev/null 2>&1 || die "未找到 node。OpenClaw 配置修复需要 node。"
 [ -f "$CONFIG" ] || die "找不到 OpenClaw 配置：$CONFIG。请先运行 OpenClaw 初始化。"
+
+if [ "${RUNNING_COACH_SKIP_NETWORK_PREFLIGHT:-0}" != "1" ]; then
+  bash "$SKILL_DIR/scripts/network-proxy-preflight.sh"
+else
+  warn "已跳过网络代理预检查。"
+fi
 
 choose_model() {
   if [ -n "$MODEL" ]; then
